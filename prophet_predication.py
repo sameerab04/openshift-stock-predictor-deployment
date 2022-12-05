@@ -88,7 +88,7 @@ def get_prediction():
 
 	# Merge actual and predicted values
 	performance = pd.merge(data, forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']], on='ds')
-
+	yhat = list(performance['yhat'])
 	# Check MAE value
 	performance_MAE = mean_absolute_error(performance['y'], performance['yhat'])
 	print(f'The MAE for the model is {performance_MAE}')
@@ -100,9 +100,12 @@ def get_prediction():
 	performance['anomaly'] = performance.apply(lambda rows: 1 if ((rows.y<rows.yhat_lower)|(rows.y>rows.yhat_upper)) else 0, axis = 1)
 	 # Check the number of anomalies
 	performance['anomaly'].value_counts()
+
 	# Take a look at the anomalies
 	anomalies = performance[performance['anomaly']==1].sort_values(by='ds')
+	num_anomaly = (len(anomalies.index))
 	print(anomalies)
+	print(num_anomaly)
  
 	# Visualize the anomalies
 	# sns.scatterplot(x='ds', y='y', data=performance, hue='anomaly')
@@ -110,6 +113,7 @@ def get_prediction():
 	#plt.show()
 	
 	return jsonify(
+		number_of_anomalies = num_anomaly,
 		model_MAPE = performance_MAPE
 	)
 
