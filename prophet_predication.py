@@ -16,9 +16,19 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
 from pandas import to_datetime
 from matplotlib import pyplot
+from flask import Flask, request, jsonify
 
+app = Flask(__name__)
 
-def pull_data(start_date, end_date, ticker):
+@app.route("/", methods=[ 'POST'])
+def get_prediction():
+	inputs = request.get_json()
+
+	start_date = inputs['start_date']
+	end_date = inputs['end_date']
+	ticker = inputs['ticker']
+	periods = inputs['periods']
+
 
 	yfin = yf.Ticker(ticker)
 
@@ -45,16 +55,14 @@ def pull_data(start_date, end_date, ticker):
 	
 	print(data.head(3))
 	data.info()
-	return data, hist
 
-# Visualize data using seaborn
-def visualize_data(data, legend):
-	sns.set(rc={'figure.figsize':(12,8)})
-	sns.lineplot(x=data['ds'], y=data['y'])
-	plt.legend([legend])
-	plt.show()
+	# Visualize data using seaborn
+# 	sns.set(rc={'figure.figsize':(12,8)})
+# 	sns.lineplot(x=data['ds'], y=data['y'])
+# 	plt.legend([legend])
+# 	plt.show()
 
-def train_model(data, hist):
+	#Create model
 	model = Prophet(interval_width=0.99, yearly_seasonality=True, weekly_seasonality=True, daily_seasonality=True)
 
 	# Fit the model on the training dataset
@@ -66,22 +74,18 @@ def train_model(data, hist):
 
 	model.fit(train)
 	
-	return model, train, test_data
 
-# use the model to make a forecast
-# Make prediction
-def make_prediction(start_date, end_date, periods, hist,model ):
+	# use the model to make a forecast
+	# Make prediction
 	future = list()
-	future =  pd.date_range(start=start_date, periods = periods)
+	future =  pd.date_range(start=start_date, periods = int(periods))
 	#future.append([date])
 	future = DataFrame(future)
 	future.columns = ['ds']
 	future['ds'] = to_datetime(future['ds'])
 
 	forecast = model.predict(hist)
-	return forecast
 
-def assess_model(forecast, data):
 	# Merge actual and predicted values
 	performance = pd.merge(data, forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']], on='ds')
 
@@ -92,41 +96,26 @@ def assess_model(forecast, data):
 	# Check MAPE value
 	performance_MAPE = mean_absolute_percentage_error(performance['y'], performance['yhat'])
 	print(f'The MAPE for the model is {performance_MAPE}')
-	return performance
 
-def create_anomaly_indicator(performance):
 	performance['anomaly'] = performance.apply(lambda rows: 1 if ((rows.y<rows.yhat_lower)|(rows.y>rows.yhat_upper)) else 0, axis = 1)
 	 # Check the number of anomalies
 	performance['anomaly'].value_counts()
 	# Take a look at the anomalies
 	anomalies = performance[performance['anomaly']==1].sort_values(by='ds')
 	print(anomalies)
-	return performance
  
-
-def visualize_anomalies(performance):
 	# Visualize the anomalies
-	sns.scatterplot(x='ds', y='y', data=performance, hue='anomaly')
-	sns.lineplot(x='ds', y='yhat', data=performance, color='black')
-	plt.show()
+	# sns.scatterplot(x='ds', y='y', data=performance, hue='anomaly')
+	# sns.lineplot(x='ds', y='yhat', data=performance, color='black')
+	#plt.show()
+	
+	return jsonify(
+		model_MAPE = performance_MAPE
+	)
 
 
 
 
-start_date = input("Enter start date: ")
-end_date = input("Enter end date: ")
-ticker = input("Enter ticker: ")
-periods = input("Enter number of periods: ")
-
-all_data, history_data = pull_data(start_date, end_date, ticker)
-visualize_data(all_data, ticker)
-model, train, test_data = train_model(all_data, history_data)
-forecast = make_prediction(start_date, end_date, int(periods), history_data, model)
-model.plot(forecast); 
-plt.show()
-performance = assess_model(forecast, all_data)
-perfornace_with_anomaly = create_anomaly_indicator(performance)
-visualize_anomalies(perfornace_with_anomaly)
 
 
 
