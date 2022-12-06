@@ -2,18 +2,16 @@
 # Get time series data
 import yfinance as yf
 # Prophet model for time series forecast
+#from prophet import Prophet
+
 from prophet import Prophet
 # Data processing
-import numpy as np
+#import numpy as np
 import pandas as pd
 from pandas import DataFrame
-
-# Visualization
-import seaborn as sns
-import matplotlib.pyplot as plt
+from statistics import mean
 
 # Model performance evaluation
-from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
 from pandas import to_datetime
 from matplotlib import pyplot
 from flask import Flask, request, jsonify
@@ -22,6 +20,7 @@ app = Flask(__name__)
 
 @app.route("/", methods=[ 'POST'])
 def get_prediction():
+	print("HERE")
 	inputs = request.get_json()
 
 	start_date = inputs['start_date']
@@ -90,12 +89,14 @@ def get_prediction():
 	performance = pd.merge(data, forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']], on='ds')
 	yhat = list(performance['yhat'])
 	# Check MAE value
-	performance_MAE = mean_absolute_error(performance['y'], performance['yhat'])
-	print(f'The MAE for the model is {performance_MAE}')
+	#performance_MAE = mean_absolute_error(performance['y'], performance['yhat'])
+	#print(f'The MAE for the model is {performance_MAE}')
 
 	# Check MAPE value
-	performance_MAPE = mean_absolute_percentage_error(performance['y'], performance['yhat'])
-	print(f'The MAPE for the model is {performance_MAPE}')
+	y_true, y_pred = pd.array(performance['y']), pd.array(performance['yhat'])
+	performance_MAPE = mean(abs((y_true - y_pred) / y_true)) * 100
+	
+	#print(f'The MAPE for the model is {performance_MAPE}')
 
 	performance['anomaly'] = performance.apply(lambda rows: 1 if ((rows.y<rows.yhat_lower)|(rows.y>rows.yhat_upper)) else 0, axis = 1)
 	 # Check the number of anomalies
@@ -104,8 +105,8 @@ def get_prediction():
 	# Take a look at the anomalies
 	anomalies = performance[performance['anomaly']==1].sort_values(by='ds')
 	num_anomaly = (len(anomalies.index))
-	print(anomalies)
-	print(num_anomaly)
+	# print(anomalies)
+	# print(num_anomaly)
  
 	# Visualize the anomalies
 	# sns.scatterplot(x='ds', y='y', data=performance, hue='anomaly')
@@ -120,9 +121,7 @@ def get_prediction():
 
 
 
-
-
-
-
+if __name__ == "__main__":    
+    app.run(host='0.0.0.0')
 
 
